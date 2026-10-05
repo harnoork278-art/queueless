@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Counter Console – QueueLess{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Admin Queue Management Console 🎛️</h1>
+        <p class="page-description">Monitor real-time counters, call next tokens, and control service queues.</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; background: #fff; padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid var(--border-color);">
+            <label for="auto-refresh-toggle" style="cursor: pointer; display: flex; align-items: center; gap: 0.35rem; font-weight: 600;">
+                <input type="checkbox" id="auto-refresh-toggle" checked>
+                Auto-Refresh
+            </label>
+            <span id="admin-refresh-timer" style="color: var(--text-muted); font-size: 0.8rem;">(10s)</span>
+        </div>
+        <a href="{{ url_for('admin.manage_services') }}" class="btn btn-outline btn-sm">
+            ⚙️ Manage Services
+        </a>
+    </div>
+</div>
+
+<!-- Aggregated Statistics Cards -->
+<div class="grid-4" style="margin-bottom: 1.5rem;">
+    <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+        <span class="stat-label">Waiting in Queue</span>
+        <span class="stat-value" style="color: #d97706;">{{ stats.total_waiting }}</span>
+        <span class="stat-desc">Tokens awaiting counter call</span>
+    </div>
+
+    <div class="stat-card" style="border-left: 4px solid #10b981;">
+        <span class="stat-label">Currently Serving</span>
+        <span class="stat-value" style="color: #059669;">{{ stats.total_serving }}</span>
+        <span class="stat-desc">Active at service desks</span>
+    </div>
+
+    <div class="stat-card" style="border-left: 4px solid #0284c7;">
+        <span class="stat-label">Completed Today</span>
+        <span class="stat-value" style="color: #0284c7;">{{ stats.total_completed }}</span>
+        <span class="stat-desc">Successfully processed</span>
+    </div>
+
+    <div class="stat-card" style="border-left: 4px solid #ef4444;">
+        <span class="stat-label">Cancelled Tokens</span>
+        <span class="stat-value" style="color: #dc2626;">{{ stats.total_cancelled }}</span>
+        <span class="stat-desc">Revoked by user/admin</span>
+    </div>
+</div>
+
+<!-- Real-time Service Counters Grid -->
+<div class="card" style="margin-bottom: 2rem;">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Live Service Counter Desks</h3>
+            <p class="card-subtitle">Call the next waiting student to each respective desk</p>
+        </div>
+    </div>
+
+    <div class="grid-3">
+        {% for s in services %}
+            <div class="counter-card active-counter">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="service-code">{{ s.service_code }}</span>
+                        <span class="badge {% if s.waiting_count > 0 %}badge-waiting{% else %}badge-completed{% endif %}">
+                            {{ s.waiting_count }} Waiting
+                        </span>
+                    </div>
+                    <div class="counter-title" style="margin-top: 0.4rem;">{{ s.service_name }}</div>
+                </div>
+
+                <div class="serving-display">
+                    <div class="serving-label">Now Serving at Counter</div>
+                    <div class="serving-token">
+                        {{ s.current_serving or '— (Desk Idle) —' }}
+                    </div>
+                </div>
+
+                <div style="margin-top: 0.5rem;">
+                    {% if s.is_active %}
+                        <form action="{{ url_for('admin.call_next') }}" method="POST">
+                            <input type="hidden" name="service_id" value="{{ s.id }}">
+                            <button 
+                                type="submit" 
+                                class="btn btn-success btn-block" 
+                                {% if s.waiting_count == 0 %}style="opacity: 0.7;"{% endif %}
+                            >
+                                📢 Call Next Token &rarr;
+                            </button>
+                        </form>
+                    {% else %}
+                        <button class="btn btn-outline btn-block" disabled style="opacity: 0.6;">
+                            Service Inactive
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Active Live Queue Management Table -->
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Live Queue Status & Action Controls</h3>
+            <p class="card-subtitle">Manage individual token statuses (Complete, Cancel, or Serve)</p>
+        </div>
+
+        <!-- Filter Controls -->
+        <form method="GET" action="{{ url_for('admin.dashboard') }}" style="display: flex; gap: 0.5rem;">
+            <select name="service_id" class="form-control" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.85rem;" onchange="this.form.submit()">
+                <option value="">All Services</option>
+                {% for svc in all_services %}
+                    <option value="{{ svc.id }}" {% if selected_service_id == svc.id %}selected{% endif %}>
+                        {{ svc.service_name }} ({{ svc.service_code }})
+                    </option>
+                {% endfor %}
+            </select>
+
+            <select name="status" class="form-control" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.85rem;" onchange="this.form.submit()">
+                <option value="">Active (Waiting & Serving)</option>
+                <option value="Waiting" {% if status_filter == 'Waiting' %}selected{% endif %}>Waiting Only</option>
+                <option value="Serving" {% if status_filter == 'Serving' %}selected{% endif %}>Serving Only</option>
+            </select>
+        </form>
+    </div>
+
+    {% if queue_tokens %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Token #</th>
+                        <th>Service Desk</th>
+                        <th>Student Name</th>
+                        <th>Contact</th>
+                        <th>Status</th>
+                        <th>Requested At</th>
+                        <th style="text-align: right;">Queue Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in queue_tokens %}
+                        <tr style="{% if t.status == 'Serving' %}background-color: #f0fdf4; font-weight: 500;{% endif %}">
+                            <td>
+                                <strong style="font-size: 1.1rem; color: #1e3a8a;">{{ t.token_number }}</strong>
+                            </td>
+                            <td>
+                                <div><strong>{{ t.service_name }}</strong></div>
+                                <span class="service-code" style="font-size: 0.72rem;">{{ t.service_code }}</span>
+                            </td>
+                            <td>
+                                <div>{{ t.full_name }}</div>
+                                <small style="color: var(--text-muted);">@{{ t.username }}</small>
+                            </td>
+                            <td>
+                                <small>{{ t.phone or '-' }}</small>
+                            </td>
+                            <td>
+                                <span class="badge badge-{{ t.status|lower }}">{{ t.status }}</span>
+                            </td>
+                            <td>
+                                <small>{{ t.created_at }}</small>
+                            </td>
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 0.35rem; justify-content: flex-end;">
+                                    {% if t.status == 'Waiting' %}
+                                        <!-- Serve Now button -->
+                                        <form action="{{ url_for('admin.token_action', token_id=t.id) }}" method="POST">
+                                            <input type="hidden" name="action" value="serve">
+                                            <button type="submit" class="btn btn-success btn-sm" title="Call directly to counter">
+                                                Serve
+                                            </button>
+                                        </form>
+                                    {% endif %}
+
+                                    {% if t.status in ('Waiting', 'Serving') %}
+                                        <!-- Complete button -->
+                                        <form action="{{ url_for('admin.token_action', token_id=t.id) }}" method="POST">
+                                            <input type="hidden" name="action" value="complete">
+                                            <button type="submit" class="btn btn-primary btn-sm" title="Mark token completed">
+                                                ✓ Complete
+                                            </button>
+                                        </form>
+
+                                        <!-- Cancel button -->
+                                        <form 
+                                            action="{{ url_for('admin.token_action', token_id=t.id) }}" 
+                                            method="POST"
+                                            data-confirm="Cancel token {{ t.token_number }} for {{ t.full_name }}?"
+                                        >
+                                            <input type="hidden" name="action" value="cancel">
+                                            <button type="submit" class="btn btn-danger btn-sm" title="Cancel this token">
+                                                ✕ Cancel
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 2.5rem 1rem;">
+            <span style="font-size: 2.5rem;">🎉</span>
+            <h3 style="margin-top: 0.5rem; color: #1e293b;">Queue is Empty!</h3>
+            <p style="color: var(--text-muted);">There are no active tokens waiting or being served for the selected filter.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin_queue.js') }}"></script>
+{% endblock %}

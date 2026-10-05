@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Services – Admin | QueueLess{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Service Counters Configuration ⚙️</h1>
+        <p class="page-description">Add new counters, update average service times, and toggle active status.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline btn-sm">
+            &larr; Back to Console
+        </a>
+    </div>
+</div>
+
+<div class="grid-3" style="align-items: start;">
+    <!-- Add New Service Form -->
+    <div class="card" style="grid-column: 1 / 2;">
+        <div class="card-header">
+            <h3 class="card-title">Add New Service</h3>
+        </div>
+
+        <form action="{{ url_for('admin.manage_services') }}" method="POST">
+            <input type="hidden" name="form_action" value="create">
+
+            <div class="form-group">
+                <label for="service_code" class="form-label">Service Code *</label>
+                <input 
+                    type="text" 
+                    id="service_code" 
+                    name="service_code" 
+                    class="form-control" 
+                    placeholder="e.g. HST, SCH, INT" 
+                    required 
+                    maxlength="6"
+                    style="text-transform: uppercase;"
+                >
+                <div class="form-text">Short unique 2-5 letter code.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="prefix" class="form-label">Token Prefix</label>
+                <input 
+                    type="text" 
+                    id="prefix" 
+                    name="prefix" 
+                    class="form-control" 
+                    placeholder="e.g. HST" 
+                    maxlength="4"
+                    style="text-transform: uppercase;"
+                >
+                <div class="form-text">Prefix used on tokens (e.g. HST-101).</div>
+            </div>
+
+            <div class="form-group">
+                <label for="service_name" class="form-label">Service Name *</label>
+                <input 
+                    type="text" 
+                    id="service_name" 
+                    name="service_name" 
+                    class="form-control" 
+                    placeholder="e.g. Hostel Accommodation Desk" 
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="avg_wait_per_token" class="form-label">Avg Wait Time (minutes) *</label>
+                <input 
+                    type="number" 
+                    id="avg_wait_per_token" 
+                    name="avg_wait_per_token" 
+                    class="form-control" 
+                    value="5" 
+                    min="1" 
+                    max="60" 
+                    required
+                >
+                <div class="form-text">Estimated time per customer.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="description" class="form-label">Description</label>
+                <textarea 
+                    id="description" 
+                    name="description" 
+                    class="form-control" 
+                    rows="3" 
+                    placeholder="Details about documents needed or counter scope..."
+                ></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                + Create Service Counter
+            </button>
+        </form>
+    </div>
+
+    <!-- Existing Services Table -->
+    <div class="card" style="grid-column: 2 / -1;">
+        <div class="card-header">
+            <h3 class="card-title">Configured Service Counters</h3>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">{{ services|length }} Counters Total</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name & Prefix</th>
+                        <th>Avg Wait</th>
+                        <th>Status</th>
+                        <th>Live Queue</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in services %}
+                        <tr>
+                            <td>
+                                <span class="service-code">{{ s.service_code }}</span>
+                            </td>
+                            <td>
+                                <div><strong>{{ s.service_name }}</strong></div>
+                                <small style="color: var(--text-muted);">Prefix: <code>{{ s.prefix }}</code></small>
+                            </td>
+                            <td>
+                                <strong>{{ s.avg_wait_per_token }}</strong> mins
+                            </td>
+                            <td>
+                                {% if s.is_active %}
+                                    <span class="badge badge-serving" style="animation: none;">Active</span>
+                                {% else %}
+                                    <span class="badge badge-cancelled">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>Waiting: <strong>{{ s.waiting_count }}</strong></small><br>
+                                <small>Serving: <strong style="color: #15803d;">{{ s.current_serving or '-' }}</strong></small>
+                            </td>
+                            <td style="text-align: right;">
+                                <form action="{{ url_for('admin.toggle_service', service_id=s.id) }}" method="POST" style="display: inline;">
+                                    {% if s.is_active %}
+                                        <button type="submit" class="btn btn-warning btn-sm" title="Disable this counter">
+                                            Deactivate
+                                        </button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-success btn-sm" title="Enable this counter">
+                                            Activate
+                                        </button>
+                                    {% endif %}
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

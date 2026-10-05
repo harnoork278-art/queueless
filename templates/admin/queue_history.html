@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Queue History & Audit – Admin | QueueLess{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Token History & Audit Log 📜</h1>
+        <p class="page-description">Complete log of all tokens issued, served, completed, and cancelled.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline btn-sm">
+            &larr; Back to Console
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Token Records ({{ tokens|length }})</h3>
+
+        <!-- Filter form -->
+        <form method="GET" action="{{ url_for('admin.queue_history') }}" style="display: flex; gap: 0.5rem;">
+            <select name="service_id" class="form-control" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.85rem;" onchange="this.form.submit()">
+                <option value="">All Services</option>
+                {% for svc in services %}
+                    <option value="{{ svc.id }}" {% if selected_service_id == svc.id %}selected{% endif %}>
+                        {{ svc.service_name }} ({{ svc.service_code }})
+                    </option>
+                {% endfor %}
+            </select>
+
+            <select name="status" class="form-control" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.85rem;" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
+                <option value="Waiting" {% if status_filter == 'Waiting' %}selected{% endif %}>Waiting</option>
+                <option value="Serving" {% if status_filter == 'Serving' %}selected{% endif %}>Serving</option>
+                <option value="Cancelled" {% if status_filter == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+        </form>
+    </div>
+
+    {% if tokens %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Token #</th>
+                        <th>Service Desk</th>
+                        <th>Student Name</th>
+                        <th>Contact</th>
+                        <th>Status</th>
+                        <th>Issued At</th>
+                        <th>Called At</th>
+                        <th>Closed At</th>
+                        <th>Admin Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tokens %}
+                        <tr>
+                            <td>
+                                <strong style="color: #1e3a8a;">{{ t.token_number }}</strong>
+                            </td>
+                            <td>
+                                <div><strong>{{ t.service_name }}</strong></div>
+                                <span class="service-code" style="font-size: 0.7rem;">{{ t.service_code }}</span>
+                            </td>
+                            <td>
+                                <div>{{ t.full_name }}</div>
+                                <small style="color: var(--text-muted);">@{{ t.username }}</small>
+                            </td>
+                            <td><small>{{ t.phone or '-' }}</small></td>
+                            <td><span class="badge badge-{{ t.status|lower }}">{{ t.status }}</span></td>
+                            <td><small>{{ t.created_at }}</small></td>
+                            <td><small>{{ t.called_at or '-' }}</small></td>
+                            <td><small>{{ t.completed_at or t.cancelled_at or '-' }}</small></td>
+                            <td><small style="color: var(--text-muted);">{{ t.admin_notes or '-' }}</small></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 2.5rem 1rem;">
+            <p style="color: var(--text-muted);">No token records match your filter criteria.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

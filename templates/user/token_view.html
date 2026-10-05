@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+
+{% block title %}Token {{ details.token.token_number }} – Live Queue | QueueLess{% endblock %}
+
+{% block content %}
+{% set t = details.token %}
+
+<div class="ticket-wrapper">
+    <!-- Back to Dashboard link -->
+    <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+        <a href="{{ url_for('user.dashboard') }}" style="color: var(--secondary); text-decoration: none; font-size: 0.9rem; font-weight: 600;">
+            &larr; Back to Services
+        </a>
+        <span style="font-size: 0.85rem; color: var(--text-muted);">
+            Issued: {{ t.created_at }}
+        </span>
+    </div>
+
+    <!-- Alert Banner when Serving -->
+    <div 
+        id="now-serving-alert" 
+        class="alert alert-success" 
+        style="{% if details.status != 'Serving' %}display: none;{% endif %} margin-bottom: 1rem; font-weight: 600;"
+    >
+        <span>🔔 ATTENTION: Your token is NOW BEING SERVED at {{ t.service_name }}! Please proceed to the counter immediately.</span>
+    </div>
+
+    <!-- Digital Token Card -->
+    <div 
+        id="ticket-container" 
+        class="ticket-card" 
+        data-token-id="{{ t.id }}" 
+        data-initial-status="{{ details.status }}"
+    >
+        <div class="ticket-top">
+            <span class="ticket-badge">{{ t.service_code }} COUNTER</span>
+            <div class="ticket-service">{{ t.service_name }}</div>
+            <div class="ticket-number">{{ t.token_number }}</div>
+            <div>
+                <span id="ticket-status-badge" class="badge badge-{{ details.status|lower }}">
+                    {{ details.status }}
+                </span>
+            </div>
+        </div>
+
+        <div class="ticket-tear-line"></div>
+
+        <div class="ticket-body">
+            <!-- Dynamic Metrics Grid -->
+            <div class="ticket-metrics">
+                <div class="ticket-metric-box">
+                    <div class="metric-label">Queue Position</div>
+                    <div id="val-position" class="metric-value">
+                        {% if details.status == 'Serving' %}
+                            <span style="color: #166534;">Serving Now</span>
+                        {% elif details.status == 'Waiting' %}
+                            #{{ details.position }}
+                        {% else %}
+                            {{ details.status }}
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="ticket-metric-box">
+                    <div class="metric-label">People Ahead</div>
+                    <div id="val-ahead" class="metric-value">
+                        {{ details.people_ahead }} person(s)
+                    </div>
+                </div>
+
+                <div class="ticket-metric-box">
+                    <div class="metric-label">Est. Waiting Time</div>
+                    <div id="val-wait" class="metric-value" style="font-size: 1.25rem;">
+                        {{ details.estimated_wait_text }}
+                    </div>
+                </div>
+
+                <div class="ticket-metric-box">
+                    <div class="metric-label">Desk Serving Now</div>
+                    <div id="val-serving" class="metric-value" style="font-size: 1.25rem; color: #1e40af;">
+                        {{ details.current_serving }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student & Ticket Details -->
+            <table class="ticket-details-table">
+                <tbody>
+                    <tr>
+                        <td>Student Name:</td>
+                        <td>{{ t.full_name }} ({{ t.username }})</td>
+                    </tr>
+                    <tr>
+                        <td>Service Category:</td>
+                        <td>{{ t.service_name }} ({{ t.service_code }})</td>
+                    </tr>
+                    <tr>
+                        <td>Avg Service Speed:</td>
+                        <td>~{{ t.avg_wait_per_token }} minutes per customer</td>
+                    </tr>
+                    {% if t.called_at %}
+                    <tr>
+                        <td>Called to Desk:</td>
+                        <td style="color: #166534;">{{ t.called_at }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if t.completed_at %}
+                    <tr>
+                        <td>Completed At:</td>
+                        <td style="color: #0369a1;">{{ t.completed_at }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if t.cancelled_at %}
+                    <tr>
+                        <td>Cancelled At:</td>
+                        <td style="color: #991b1b;">{{ t.cancelled_at }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if t.admin_notes %}
+                    <tr>
+                        <td>Desk Notes:</td>
+                        <td><em>{{ t.admin_notes }}</em></td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <!-- Action Buttons -->
+            <div class="ticket-actions">
+                <button type="button" class="btn btn-outline btn-block btn-sm" onclick="window.print()">
+                    🖨️ Print Ticket
+                </button>
+
+                {% if details.status in ('Waiting', 'Serving') %}
+                    <form 
+                        id="cancel-token-form" 
+                        action="{{ url_for('user.cancel_token', token_id=t.id) }}" 
+                        method="POST" 
+                        data-confirm="Are you sure you want to cancel token {{ t.token_number }}? This cannot be undone."
+                        style="width: 100%;"
+                    >
+                        <button type="submit" class="btn btn-danger btn-block btn-sm">
+                            ❌ Cancel Token
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+
+            <!-- Live Synchronizing Indicator -->
+            <div id="ticket-sync-box" class="ticket-sync-indicator">
+                {% if details.status in ('Waiting', 'Serving') %}
+                    <span class="sync-dot"></span>
+                    <span id="sync-countdown">Auto-refresh in 5s</span>
+                    <span>&bull;</span>
+                    <a href="#" id="btn-manual-sync" style="color: var(--primary); text-decoration: underline; font-weight: 600;">
+                        Sync Now
+                    </a>
+                {% else %}
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">
+                        This ticket has concluded ({{ details.status }}).
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/user_queue.js') }}"></script>
+{% endblock %}

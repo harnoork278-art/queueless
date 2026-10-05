@@ -1,0 +1,23 @@
+# Python Virtual Environment (Separate from source code)
+venv/
+ENV/
+env/
+
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# SQLite Database files (generated at runtime)
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+
+# Editor artifacts
+.vscode/
+.idea/
+*.swp

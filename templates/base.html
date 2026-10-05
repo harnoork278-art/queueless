@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}QueueLess – Virtual Queue System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    <!-- Header & Navigation Bar -->
+    <header>
+        <nav class="navbar">
+            <a href="{% if logged_in %}{% if is_admin %}{{ url_for('admin.dashboard') }}{% else %}{{ url_for('user.dashboard') }}{% endif %}{% else %}{{ url_for('auth.login') }}{% endif %}" class="nav-brand">
+                <span class="brand-icon">🎟️</span>
+                <div>
+                    <span class="brand-name">QueueLess</span>
+                    <span class="brand-subtitle">Virtual Queue</span>
+                </div>
+            </a>
+
+            <ul class="nav-links">
+                {% if logged_in %}
+                    {% if is_admin %}
+                        <li><a href="{{ url_for('admin.dashboard') }}" class="nav-link">🎛️ Counter Console</a></li>
+                        <li><a href="{{ url_for('admin.manage_services') }}" class="nav-link">⚙️ Manage Services</a></li>
+                        <li><a href="{{ url_for('admin.queue_history') }}" class="nav-link">📜 Queue History</a></li>
+                        <li><span class="nav-user-badge">Admin: {{ current_username }}</span></li>
+                    {% else %}
+                        <li><a href="{{ url_for('user.dashboard') }}" class="nav-link">🏠 Dashboard</a></li>
+                        <li><a href="{{ url_for('user.my_tokens') }}" class="nav-link">🎫 My Tokens</a></li>
+                        <li><span class="nav-user-badge">👤 {{ current_full_name }}</span></li>
+                    {% endif %}
+                    <li><a href="{{ url_for('auth.logout') }}" class="btn-nav-logout">Logout</a></li>
+                {% else %}
+                    <li><a href="{{ url_for('auth.login') }}" class="nav-link">Login</a></li>
+                    <li><a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Register</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="container">
+        <!-- Flash Alert Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            <span>{{ message }}</span>
+                            <button class="alert-close" type="button" aria-label="Close">&times;</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Page Specific Content -->
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p><strong>QueueLess</strong> &bull; Virtual Queue Management System &bull; BCA Academic Project</p>
+        <p style="margin-top: 4px; font-size: 0.8rem; color: #94a3b8;">
+            Built with Python Flask, SQLite, HTML5, CSS3 & JavaScript (MVC Architecture)
+        </p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

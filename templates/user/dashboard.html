@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Dashboard – QueueLess{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Welcome, {{ current_full_name }}! 👋</h1>
+        <p class="page-description">Select a service counter below to get your digital queue token without standing in line.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('user.my_tokens') }}" class="btn btn-outline btn-sm">
+            📜 View All My Tokens
+        </a>
+    </div>
+</div>
+
+<!-- Active Tokens Banner (If user has waiting or serving tokens) -->
+{% if active_tokens %}
+    <div class="card" style="border-left: 4px solid var(--primary); background: #f0f7ff; margin-bottom: 2rem;">
+        <div class="card-header" style="background: transparent; border-bottom: 1px solid #bfdbfe; margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.3rem;">🎟️</span>
+                <h3 class="card-title" style="color: #1e40af;">Your Active Queue Tokens</h3>
+            </div>
+            <span style="font-size: 0.85rem; color: #3b82f6; font-weight: 600;">Live Tracking Active</span>
+        </div>
+
+        <div class="grid-2">
+            {% for item in active_tokens %}
+                {% set t = item.token %}
+                <div class="card" style="margin-bottom: 0; background: #fff; border: 1px solid #93c5fd;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                        <div>
+                            <span class="service-code">{{ t.service_code }}</span>
+                            <h4 style="font-size: 1.1rem; margin-top: 0.35rem; color: #1e293b;">{{ t.service_name }}</h4>
+                        </div>
+                        <span class="badge badge-{{ item.status|lower }}">{{ item.status }}</span>
+                    </div>
+
+                    <div style="display: flex; align-items: baseline; gap: 0.75rem; margin: 0.75rem 0;">
+                        <span style="font-size: 2.2rem; font-weight: 800; color: #1e40af; letter-spacing: 1px;">
+                            {{ t.token_number }}
+                        </span>
+                        <span style="font-size: 0.9rem; font-weight: 600; color: #047857;">
+                            {{ item.position_label }}
+                        </span>
+                    </div>
+
+                    <div style="background: #f8fafc; border-radius: 6px; padding: 0.6rem; font-size: 0.85rem; margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                            <span style="color: var(--text-muted);">Est. Wait Time:</span>
+                            <strong>{{ item.estimated_wait_text }}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--text-muted);">Now Serving at Desk:</span>
+                            <strong>{{ item.current_serving }}</strong>
+                        </div>
+                    </div>
+
+                    <a href="{{ url_for('user.view_token', token_id=t.id) }}" class="btn btn-primary btn-block btn-sm">
+                        View Live Digital Ticket &rarr;
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}
+
+<!-- Available Services Section -->
+<div style="margin-bottom: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="font-size: 1.35rem; font-weight: 700; color: #1e293b;">
+            🏢 Available Service Counters
+        </h2>
+        <span style="font-size: 0.85rem; color: var(--text-muted);">
+            Real-time counter wait estimates
+        </span>
+    </div>
+
+    <div class="grid-3">
+        {% for s in services %}
+            <div class="service-card">
+                <div>
+                    <div class="service-header">
+                        <span class="service-code">{{ s.service_code }}</span>
+                        {% if s.is_active %}
+                            <span class="badge badge-serving" style="animation: none;">Open</span>
+                        {% else %}
+                            <span class="badge badge-cancelled">Closed</span>
+                        {% endif %}
+                    </div>
+                    <h3 class="service-title">{{ s.service_name }}</h3>
+                    <p class="service-desc">{{ s.description }}</p>
+                </div>
+
+                <div>
+                    <div class="service-meta">
+                        <div class="service-meta-item">
+                            <span style="color: var(--text-muted); display: block;">Waiting:</span>
+                            <strong>{{ s.waiting_count }} in line</strong>
+                        </div>
+                        <div class="service-meta-item">
+                            <span style="color: var(--text-muted); display: block;">Avg Wait:</span>
+                            <strong>~{{ s.avg_wait_per_token }} min/person</strong>
+                        </div>
+                        <div class="service-meta-item">
+                            <span style="color: var(--text-muted); display: block;">Serving:</span>
+                            <strong style="color: #15803d;">{{ s.current_serving or 'Idle' }}</strong>
+                        </div>
+                    </div>
+
+                    {% if s.is_active %}
+                        <form action="{{ url_for('user.book_token') }}" method="POST">
+                            <input type="hidden" name="service_id" value="{{ s.id }}">
+                            <button type="submit" class="btn btn-primary btn-block">
+                                🎟️ Get Digital Token
+                            </button>
+                        </form>
+                    {% else %}
+                        <button class="btn btn-outline btn-block" disabled style="opacity: 0.6; cursor: not-allowed;">
+                            Counter Closed
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <div class="card" style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
+                <p style="color: var(--text-muted);">No services are configured yet.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Recent Completed / Cancelled Tokens -->
+{% if recent_tokens %}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Recent Token History</h3>
+            <a href="{{ url_for('user.my_tokens') }}" style="font-size: 0.85rem; color: var(--primary); text-decoration: none; font-weight: 600;">View All</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Token #</th>
+                        <th>Service</th>
+                        <th>Status</th>
+                        <th>Date & Time</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in recent_tokens %}
+                        <tr>
+                            <td><strong>{{ t.token_number }}</strong></td>
+                            <td>{{ t.service_name }}</td>
+                            <td><span class="badge badge-{{ t.status|lower }}">{{ t.status }}</span></td>
+                            <td>{{ t.created_at }}</td>
+                            <td>
+                                <a href="{{ url_for('user.view_token', token_id=t.id) }}" class="btn btn-outline btn-sm">
+                                    View Slip
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}
